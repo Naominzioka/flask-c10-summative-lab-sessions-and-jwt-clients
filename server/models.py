@@ -8,7 +8,7 @@ class User(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String,unique=True, nullable=False)
-    email = db.Column(db.String, unique=True)
+    email = db.Column(db.String, unique=True, nullable=False)
     _password_hash = db.Column(db.String, nullable=False)
     monthly_income = db.Column(db.Float, default=0.0)
     monthly_budget=db.Column(db.Float, default=0.0)
@@ -52,8 +52,8 @@ class Expense(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable =False)
-    category = db.Column(db.String, nullable=False)
-    title = db.Column(db.String, nullable=False)
+    category = db.Column(db.String(30), nullable=False)
+    title = db.Column(db.String(80), nullable=False)
     amount = db.Column(db.Float, nullable=False)
     description = db.Column(db.String(200))
     
@@ -71,7 +71,7 @@ class Expense(db.Model):
                 raise ValueError('Amount must be a positive number')
         if key == 'description':
             if len(value) > 200:
-                raise ValueError('Description should not exceed 200 characters long')
+                raise ValueError('Description should not exceed 200 characters.')
         if key == 'title':
             if not value or value.strip() == '':
                 raise ValueError('Title cannot be empty to enable easy tracking of expenses')

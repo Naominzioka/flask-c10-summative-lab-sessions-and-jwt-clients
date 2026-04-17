@@ -1,6 +1,7 @@
 from models import User, Expense
 from config import app, db, api
 
+#setup endpoints
 
 
 if __name__ == '__main__':
