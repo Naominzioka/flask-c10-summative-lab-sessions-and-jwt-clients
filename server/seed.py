@@ -1,27 +1,28 @@
 from datetime import date
 from config import app, db
-from models import User, Expense
+from models import User, Expense, Budget
 
 with app.app_context():
     print("Clearing database...")
     Expense.query.delete()
     User.query.delete()
+    Budget.query.delete()
     
     print("Creating users...")
     
     
     
     sample_users = [
-        {'username': 'WealthyWarren', 'email': 'warren@stocks.com', 'password': 'warren_secure_99', 'income': 15000.0, 'budget': 5000.0},
-        {'username': 'BudgetBella', 'email': 'bella@save.org', 'password': 'bella_saves_2024', 'income': 3200.0, 'budget': 1200.0},
-        {'username': 'StudentSam', 'email': 'sam@edu.edu', 'password': 'study_hard_sleep_less', 'income': 1200.0, 'budget': 800.0},
-        {'username': 'ChefCharlie', 'email': 'charlie@kitchen.com', 'password': 'knife_skills_101', 'income': 4500.0, 'budget': 2200.0},
-        {'username': 'DrDan', 'email': 'dan@hospital.net', 'password': 'doctor_dan_77', 'income': 12000.0, 'budget': 6000.0},
-        {'username': 'ArtistAlice', 'email': 'alice@gallery.io', 'password': 'paint_the_world', 'income': 2800.0, 'budget': 1500.0},
-        {'username': 'GymGabe', 'email': 'gabe@fitness.com', 'password': 'heavy_lifts_only', 'income': 3800.0, 'budget': 1000.0},
-        {'username': 'TechTina', 'email': 'tina@code.dev', 'password': 'python_is_life_404', 'income': 9500.0, 'budget': 3500.0},
-        {'username': 'HikerHolly', 'email': 'holly@trails.com', 'password': 'mountains_are_calling', 'income': 4100.0, 'budget': 1800.0},
-        {'username': 'FreelanceFred', 'email': 'fred@work.com', 'password': 'remote_work_king', 'income': 5500.0, 'budget': 2500.0}
+        {'username': 'WealthyWarren', 'email': 'warren@stocks.com', 'password': 'warren_secure_99'},
+        {'username': 'BudgetBella', 'email': 'bella@save.org', 'password': 'bella_saves_2024'},
+        {'username': 'StudentSam', 'email': 'sam@edu.edu', 'password': 'study_hard_sleep_less'},
+        {'username': 'ChefCharlie', 'email': 'charlie@kitchen.com', 'password': 'knife_skills_101'},
+        {'username': 'DrDan', 'email': 'dan@hospital.net', 'password': 'doctor_dan_77'},
+        {'username': 'ArtistAlice', 'email': 'alice@gallery.io', 'password': 'paint_the_world'},
+        {'username': 'GymGabe', 'email': 'gabe@fitness.com', 'password': 'heavy_lifts_only'},
+        {'username': 'TechTina', 'email': 'tina@code.dev', 'password': 'python_is_life_404'},
+        {'username': 'HikerHolly', 'email': 'holly@trails.com', 'password': 'mountains_are_calling'},
+        {'username': 'FreelanceFred', 'email': 'fred@work.com', 'password': 'remote_work_king'}
     ]
     
     users_list = []
@@ -30,8 +31,6 @@ with app.app_context():
         u = User(
             username=data['username'], 
             email=data['email'], 
-            monthly_income=data['income'], 
-            monthly_budget=data['budget']
         )
         #  Set password_hash separately (This triggers the @setter in models.py)
         u.password_hash = data['password']
@@ -62,3 +61,21 @@ with app.app_context():
     db.session.commit()
 
     print("Successfully added your personal expenses! 🚀")
+    
+    
+    print("Seeding monthly budgets...")
+    budget_list = [
+        Budget(month=4, year=2026, monthly_income=15000.0, monthly_budget=5000.0, user=users_list[0]),
+        Budget(month=4, year=2026, monthly_income=3200.0, monthly_budget=1200.0, user=users_list[1]),
+        Budget(month=4, year=2026, monthly_income=1200.0, monthly_budget=800.0, user=users_list[2]),
+        Budget(month=4, year=2026, monthly_income=4500.0, monthly_budget=2200.0, user=users_list[3]),
+        Budget(month=4, year=2026, monthly_income=12000.0, monthly_budget=6000.0, user=users_list[4]),
+        Budget(month=4, year=2026, monthly_income=2800.0, monthly_budget=1500.0, user=users_list[5]),
+        Budget(month=4, year=2026, monthly_income=3800.0, monthly_budget=1000.0, user=users_list[6]),
+        Budget(month=4, year=2026, monthly_income=9500.0, monthly_budget=3500.0, user=users_list[7]),
+        Budget(month=4, year=2026, monthly_income=4100.0, monthly_budget=1800.0, user=users_list[8]),
+        Budget(month=4, year=2026, monthly_income=5500.0, monthly_budget=2500.0, user=users_list[9])
+    ]
+    db.session.add_all(budget_list)
+    db.session.commit()
+    print('Successfully added all budgets')
