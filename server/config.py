@@ -7,10 +7,14 @@ from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
+from flask_cors import CORS
+
 
 load_dotenv()
 
 app = Flask(__name__)
+# This tells the browser: "It is okay to send the Authorization header to this API"
+CORS(app, resources={r"/*": {"origins": "*"}}, expose_headers=["Authorization"], supports_credentials=True)
 
 # --- Configurations ---
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'       # connection - tells Flask where my db lives

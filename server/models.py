@@ -59,6 +59,10 @@ class Expense(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='expenses')
     
+    #foreign key linking expenses to a budget
+    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=False)
+    budget = db.relationship('Budget', back_populates='expenses')
+    
     @validates('amount', 'description', 'title', 'category')
     def validate_expense(self, key, value):
         if key == 'amount':
@@ -91,7 +95,10 @@ class Budget(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', back_populates='budgets')
     
-    @validates('monthly_income', 'monthly_budget')
+    expenses = db.relationship('Expense', back_populates='budget', cascade='all, delete-orphan')
+    
+    
+    @validates('monthly_income', 'monthly_budget', 'month', 'year')
     def validate_budget(self, key, value):
         if key == 'monthly_budget':
             if value < 0:
