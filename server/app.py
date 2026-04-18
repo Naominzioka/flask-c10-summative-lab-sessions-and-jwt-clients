@@ -9,6 +9,15 @@ from models import User, Expense, Budget
 from schema import UserSchema, ExpenseSchema, BudgetSchema
 from config import app, db, api, jwt
 
+"""
+User state is maintained through stateless JWT authentication, 
+where the server issues a signed token upon login that the client stores in its own browser storage.
+Because the server does not "remember" sessions, the frontend maintains
+the logged-in state by attaching this token to the Authorization header of every subsequent request.
+The server global guard(@app.before_request) then verifies the 
+tokens signature in real-time and uses get_jwt_identity() 
+to securely extract the users ID and filter their private data.
+"""
 #setup endpoints
 @app.before_request  #protected routes
 def check_if_logged_in():
