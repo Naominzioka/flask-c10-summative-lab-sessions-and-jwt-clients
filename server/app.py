@@ -10,7 +10,7 @@ from schema import UserSchema, ExpenseSchema
 from config import app, db, api, jwt
 
 #setup endpoints
-@app.before_request
+@app.before_request  #protected routes
 def check_if_logged_in():
     open_access_list = ['signup', 'login']
     
@@ -19,7 +19,7 @@ def check_if_logged_in():
     try:
         verify_jwt_in_request()
     except Exception:
-        return make_response(jsonify({'errors': ['401 Unauthorized']}), 401)
+        return make_response(jsonify({'errors': ['401 Unauthorized']}), 401) #stops any request without a valid token
     
     
 #new user endpoint    
@@ -39,10 +39,10 @@ class Signup(Resource):
         try:
             db.session.add(new_user)
             db.session.commit()
-            access_token = create_access_token(identity=str(new_user.id))
+            access_token = create_access_token(identity=str(new_user.id))  #converts user id to string for JWT identity payload
             return make_response(jsonify(token=access_token, user=UserSchema().dump(new_user)), 201)
         except IntegrityError:
-            return make_response(jsonify({'errors': ['422 Unprocessable Entity']}), 422)
+            return make_response(jsonify({'errors': ['User already exists or data is invalid']}), 422) #prevents duplicate usernames or emails from crashing the server
 
 #login route
 class Login(Resource):
@@ -55,18 +55,17 @@ class Login(Resource):
             token = create_access_token(identity=str(user.id))
             return make_response(jsonify(token=token, user=UserSchema().dump(user)), 200)
         
-        return make_response(jsonify({'errors': ['401 Unauthorized']}), 401)
+        return make_response(jsonify({'errors': ['Invalid username or password']}), 401)
     
 
 class WhoAmI(Resource):
     def get(self):
         user_id = get_jwt_identity()
-
-        user = User.query.filter(User.id == int(user_id)).first()
+        user = User.query.get(int(user_id))
         if not user:
             return make_response(jsonify({'errors': ['User not found']}), 404)
         
-        return UserSchema().dump(user), 200
+        return make_response(jsonify(UserSchema().dump(user)), 200)
     
 class ExpensesIndex(Resource): 
     def get(self):
@@ -107,25 +106,58 @@ class ExpensesIndex(Resource):
             description=data.get('description'),
             date=dt.date(),
             user_id=user_id,
-            budget_id=budget.id
+            budget_id=budget.id #ties the expense to the budget 
             
         )
         try:
             db.session.add(new_expense)
             db.session.commit()
-            return ExpenseSchema().dump(new_expense), 201
+            return make_response(jsonify(ExpenseSchema().dump(new_expense)), 201)
         except Exception as e:
             db.session.rollback()
-            return {"error": str(e)}, 422
-        
+            return make_response(jsonify({"error": str(e)}), 422)
+            
 # find one expense by its id
 class ExpensesById(Resource):
     def get(self, id):
         user_id = get_jwt_identity()
-        user_expenses = Expense.query.filter_by(id=id, user_id=user_id).first()
+        user_expenses = Expense.query.filter_by(id=id, user_id=user_id).first()  # filter by both id and user id so users can't access other users data
         if not user_expenses:
-            return make_response(jsonify({'message': 'Expense not found or unauthorized'}), 404)
-        return ExpenseSchema().dump(user_expenses), 200
+            return {'message': 'Expense not found or unauthorized'}, 404
+        return make_response(jsonify(ExpenseSchema().dump(user_expenses)), 200)
+    
+    #delete an expense by id
+    def delete(self, id):
+        user_id = get_jwt_identity()
+        user_expense = Expense.query.filter_by(id=id, user_id=user_id).first()
+        if not user_expense:
+            return {'message': 'Expense id not found'}, 404
+        try:
+            db.session.delete(user_expense)
+            db.session.commit()
+            return make_response('', 204)  # return empty since no content is found after the deletion
+        except Exception as e:
+            db.session.rollback()
+            return make_response(jsonify({'error': 'Could not delete expense'}), 500)
+    
+    def patch(self, id):
+        data = request.get_json()
+        user_id = get_jwt_identity()
+        user_expense = Expense.query.filter_by(id=id, user_id=user_id).first()
+        if not user_expense:
+            return {'message': 'Expense not found'}, 404
+        
+        # Update only the fields available in the request body
+        for key in ['title', 'amount', 'category', 'description']:
+            if key in data:
+                setattr(user_expense, key, data[key])
+        try:
+            db.session.commit()
+            return make_response(jsonify(ExpenseSchema().dump(user_expense)), 200)
+        except Exception as e:
+            db.session.rollback()
+            return make_response(jsonify({"error": str(e)}), 422)
+                
 
     
 
