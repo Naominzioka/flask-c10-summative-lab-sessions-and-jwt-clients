@@ -21,7 +21,7 @@ to securely extract the users ID and filter their private data.
 #setup endpoints
 @app.before_request  #protected routes
 def check_if_logged_in():
-    open_access_list = ['signup', 'login',]
+    open_access_list = ['signup', 'login']
     
     if request.endpoint in open_access_list:
         return None
