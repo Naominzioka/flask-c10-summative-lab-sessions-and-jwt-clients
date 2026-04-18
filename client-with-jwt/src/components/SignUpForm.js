@@ -3,6 +3,7 @@ import { Button, Error, Input, FormField, Label, Textarea } from "../styles";
 
 function SignUpForm({ onLogin }) {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [errors, setErrors] = useState([]);
@@ -10,6 +11,12 @@ function SignUpForm({ onLogin }) {
 
   function handleSubmit(e) {
     e.preventDefault();
+
+    if (password !== passwordConfirmation) {
+      setErrors(['Passwords must match'])
+      return
+    }
+
     setErrors([]);
     setIsLoading(true);
     fetch("/signup", {
@@ -20,12 +27,12 @@ function SignUpForm({ onLogin }) {
       body: JSON.stringify({
         username,
         password,
-        password_confirmation: passwordConfirmation
+        email
       }),
     }).then((r) => {
       setIsLoading(false);
       if (r.ok) {
-        r.json().then(({token, user}) => onLogin(token, user));
+        r.json().then(({ token, user }) => onLogin(token, user));
       } else {
         r.json().then((err) => setErrors(err.errors));
       }
@@ -34,6 +41,16 @@ function SignUpForm({ onLogin }) {
 
   return (
     <form onSubmit={handleSubmit}>
+      <FormField>
+        <Label htmlFor="email">Email</Label>
+        <Input
+          type="email"
+          id="email"
+          autoComplete="off"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </FormField>
       <FormField>
         <Label htmlFor="username">Username</Label>
         <Input

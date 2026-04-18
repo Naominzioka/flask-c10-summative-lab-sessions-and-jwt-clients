@@ -9,7 +9,7 @@ function Login({ onLogin }) {
 
   return (
     <Wrapper>
-      <Logo>My App</Logo>
+      <Logo>My Expenses App</Logo>
       {showLogin ? (
         <>
           <LoginForm onLogin={onLogin} />
