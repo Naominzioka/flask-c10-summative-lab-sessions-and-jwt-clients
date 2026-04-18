@@ -93,8 +93,7 @@ class ExpensesIndex(Resource):
         budget = Budget.query.filter_by(user_id=user_id, month=dt.month, year=dt.year).first()
         
         if not budget:
-            month_name = dt.strftime('%B')  #extract the full name of the month
-            budget = Budget(name=f"{month_name} Budget", month=dt.month, year=dt.year, user_id=user_id, amount=0)
+            budget = Budget(month=dt.month, year=dt.year, user_id=user_id, monthly_income=0, monthly_budget=0)
             db.session.add(budget)
             db.session.commit()
 
@@ -123,7 +122,7 @@ class ExpensesById(Resource):
         user_id = get_jwt_identity()
         user_expenses = Expense.query.filter_by(id=id, user_id=user_id).first()  # filter by both id and user id so users can't access other users data
         if not user_expenses:
-            return {'message': 'Expense not found or unauthorized'}, 404
+            return {'message': 'Expense not found'}, 404
         return make_response(jsonify(ExpenseSchema().dump(user_expenses)), 200)
     
     #delete an expense by id
@@ -167,13 +166,76 @@ class BudgetIndex(Resource):
         if not user_budgets:
             return make_response(jsonify({'message': 'No budgets found.'}), 404)
         return make_response(jsonify(BudgetSchema(many=True).dump(user_budgets)), 200)
+    
+    #create new budget
+    def post(self):
+        data = request.get_json()
+        user_id = get_jwt_identity()
+    
+        check_if_exists = Budget.query.filter_by(
+            user_id=user_id,
+            month = data.get('month'),
+            year = data.get('year')
+        ).first()
+        if check_if_exists:
+            return make_response(jsonify({'error': 'Budget for this month already exists'}), 422)
+        new_budget = Budget(
+            monthly_income = data.get('monthly_income'),
+            monthly_budget = data.get('monthly_budget'),
+            month= data.get('month'),
+            year=data.get('year'),
+            user_id=user_id
+        )
+        try:
+            db.session.add(new_budget)
+            db.session.commit()
+            return make_response(jsonify(BudgetSchema().dump(new_budget)), 201)
+        except Exception as e:
+            db.session.rollback()
+            return make_response(jsonify({'error': str(e)}), 422)
+        
+        
+        
+        
 class BudgetId(Resource):
     def get(self, id):
         user_id = get_jwt_identity()
         user_budget = Budget.query.filter_by(id=id, user_id=user_id).first()
         if not user_budget:
-            return make_response(jsonify({'message': 'Budget not found or unauthorized'}), 404)
+            return make_response(jsonify({'message': 'Budget not found'}), 404)
         return make_response(jsonify(BudgetSchema().dump(user_budget)), 200)
+    
+    def delete(self, id):
+        user_id = get_jwt_identity()
+        user_budget = Budget.query.filter_by(id=id, user_id=user_id).first()
+        if not user_budget:
+            return make_response(jsonify({'message': 'Budget not found'}), 404)
+        try:
+            Expense.query.filter_by(budget_id=id).delete()  #first find expenses linked to the budget to be deleted and delete them
+            db.session.delete(user_budget)
+            db.session.commit()
+            return make_response('', 204)
+        except Exception as e:
+            db.session.rollback()
+            return make_response(jsonify({'error': str(e)}), 500)
+    
+    def patch(self, id):
+        data = request.get_json()
+        user_id = get_jwt_identity()
+        user_budget = Budget.query.filter_by(id=id, user_id=user_id).first()
+        if not user_budget:
+            return {'message': 'Budget not found'}, 404
+        
+        # Update only the fields available in the request body
+        for key in ['monthly_income', 'monthly_budget']:
+            if key in data:
+                setattr(user_budget, key, data[key])
+        try:
+            db.session.commit()
+            return make_response(jsonify(BudgetSchema().dump(user_budget)), 200)
+        except Exception as e:
+            db.session.rollback()
+            return make_response(jsonify({"error": str(e)}), 422)
         
 
     
@@ -184,7 +246,7 @@ api.add_resource(WhoAmI, '/me', endpoint='me')
 api.add_resource(ExpensesById, '/expenses/<int:id>', endpoint='expensesId' )
 api.add_resource(ExpensesIndex, '/expenses', endpoint='expenses')
 api.add_resource(BudgetIndex, '/budgets', endpoint='budgets')
-api.add_resource(BudgetId, '/budget/<int:id>', endpoint='budgetId')
+api.add_resource(BudgetId, '/budgets/<int:id>', endpoint='budgetId')
 
 
 if __name__ == '__main__':

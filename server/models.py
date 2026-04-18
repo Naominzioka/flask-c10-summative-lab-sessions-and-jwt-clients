@@ -98,7 +98,7 @@ class Budget(db.Model):
     expenses = db.relationship('Expense', back_populates='budget', cascade='all, delete-orphan')
     
     
-    @validates('monthly_income', 'monthly_budget')
+    @validates('monthly_income', 'monthly_budget', 'month', 'year')
     def validate_budget(self, key, value):
         if key == 'monthly_budget':
             if value < 0:
