@@ -21,7 +21,7 @@ to securely extract the users ID and filter their private data.
 #setup endpoints
 @app.before_request  #protected routes
 def check_if_logged_in():
-    open_access_list = ['signup', 'login']
+    open_access_list = ['signup', 'login',]
     
     if request.endpoint in open_access_list:
         return None
@@ -75,6 +75,13 @@ class WhoAmI(Resource):
             return make_response(jsonify({'errors': ['User not found']}), 404)
         
         return make_response(jsonify(UserSchema().dump(user)), 200)
+    
+    """ 
+    NOTE:This API uses stateless JWTs. Logout is handled on the 
+    frontend by deleting the stored token. Since the backend doesn't track 
+    sessions, destroying the token on the client side instantly kills access, 
+    making a dedicated server-side logout route unnecessary.
+    """
     
 class ExpensesIndex(Resource): 
     def get(self):
