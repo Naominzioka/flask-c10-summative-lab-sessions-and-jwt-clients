@@ -6,7 +6,7 @@ from flask import request, jsonify, make_response
 from datetime import datetime
 
 from models import User, Expense, Budget
-from schema import UserSchema, ExpenseSchema
+from schema import UserSchema, ExpenseSchema, BudgetSchema
 from config import app, db, api, jwt
 
 #setup endpoints
@@ -158,6 +158,23 @@ class ExpensesById(Resource):
             db.session.rollback()
             return make_response(jsonify({"error": str(e)}), 422)
                 
+#budget endpoints
+# 1.all user budgets
+class BudgetIndex(Resource):
+    def get(self):
+        user_id = get_jwt_identity()
+        user_budgets = Budget.query.filter_by(user_id=user_id).order_by(Budget.year.desc(), Budget.month.desc()).all() # first filter budgets by user, then sort by most recent and fetch all
+        if not user_budgets:
+            return make_response(jsonify({'message': 'No budgets found.'}), 404)
+        return make_response(jsonify(BudgetSchema(many=True).dump(user_budgets)), 200)
+class BudgetId(Resource):
+    def get(self, id):
+        user_id = get_jwt_identity()
+        user_budget = Budget.query.filter_by(id=id, user_id=user_id).first()
+        if not user_budget:
+            return make_response(jsonify({'message': 'Budget not found or unauthorized'}), 404)
+        return make_response(jsonify(BudgetSchema().dump(user_budget)), 200)
+        
 
     
 
@@ -166,6 +183,8 @@ api.add_resource(Signup, '/signup', endpoint='signup')
 api.add_resource(WhoAmI, '/me', endpoint='me')
 api.add_resource(ExpensesById, '/expenses/<int:id>', endpoint='expensesId' )
 api.add_resource(ExpensesIndex, '/expenses', endpoint='expenses')
+api.add_resource(BudgetIndex, '/budgets', endpoint='budgets')
+api.add_resource(BudgetId, '/budget/<int:id>', endpoint='budgetId')
 
 
 if __name__ == '__main__':
