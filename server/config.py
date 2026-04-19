@@ -21,6 +21,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'       # connection - 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False             # reduce memory and processing power by not tracking every single change on the db
 app.json.compact = False                                         # readability - makes json response easy to read
 app.config["JWT_SECRET_KEY"] = os.getenv('JWT_SECRET_KEY', '')           # security - key to sign tokens
+app.config['JSON_SORT_KEYS'] = False  # preserves OrderedDict key order in response budget endpoint only.
 
 # --- Initializing Tools ---
 jwt = JWTManager(app)                                            # handling json web tokens

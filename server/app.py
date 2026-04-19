@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from flask_restful import Resource
 from flask import request, jsonify, make_response
 from datetime import datetime
+from collections import OrderedDict
 
 from models import User, Expense, Budget
 from schema import UserSchema, ExpenseSchema, BudgetSchema
@@ -174,15 +175,39 @@ class ExpensesById(Resource):
             return make_response(jsonify({"error": str(e)}), 422)
                 
 #budget endpoints
-# 1.all user budgets
+# 1.all user budgets with calculated fields for total spent, remaining budget, and remaining income
 class BudgetIndex(Resource):
     def get(self):
         user_id = get_jwt_identity()
-        user_budgets = Budget.query.filter_by(user_id=user_id).order_by(Budget.year.desc(), Budget.month.desc()).all() # first filter budgets by user, then sort by most recent and fetch all
+        user_budgets = Budget.query.filter_by(user_id=user_id).all()
+        
         if not user_budgets:
             return make_response(jsonify({'message': 'No budgets found.'}), 404)
-        return make_response(jsonify(BudgetSchema(many=True).dump(user_budgets)), 200)
-    
+
+        results = []
+        
+        for b in user_budgets:
+            budget_data = BudgetSchema().dump(b)
+            
+            total_spent = 0                    
+            for expense in b.expenses:
+                total_spent += expense.amount  # calculate total spent for each budget by summing the amounts of all linked expenses
+                                               #the user is given real time budget summary without manual calculations.
+            ordered = OrderedDict()
+            ordered['id'] = budget_data.get('id')
+            ordered['month'] = budget_data.get('month')
+            ordered['year'] = budget_data.get('year')
+            ordered['monthly_income'] = budget_data.get('monthly_income')
+            ordered['monthly_budget'] = budget_data.get('monthly_budget')
+            ordered['total_spent'] = round(float(total_spent), 2)
+            ordered['remaining_income'] = round(float(b.monthly_income - total_spent), 2)
+            ordered['remaining_budget'] = round(float(b.monthly_budget - total_spent), 2)
+            ordered['over_budget'] = total_spent > b.monthly_budget
+            
+            results.append(ordered)
+
+        return make_response(jsonify(results), 200)
+
     #create new budget
     def post(self):
         data = request.get_json()
