@@ -1,4 +1,4 @@
-# Personal Finance Tracker API (Flask + JWT)
+# Personal Expenses Tracker API (Flask + JWT)
 
 Backend-focused Flask project for user authentication, expense tracking, and budgeting using JWT.
 
