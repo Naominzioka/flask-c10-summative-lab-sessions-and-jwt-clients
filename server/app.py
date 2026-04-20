@@ -35,23 +35,34 @@ def check_if_logged_in():
 #new user endpoint    
 class Signup(Resource):
     def post(self):
-        request_json = request.get_json()
+        request_json = request.get_json() or {}
         
         username = request_json.get('username')
         password = request_json.get('password')
         email = request_json.get('email')
-        
-        new_user = User(
-            username=username,
-            email=email
-        )
-        new_user.password_hash=password
+
+        if not username:
+            return make_response(jsonify({'errors': ['Username is required']}), 400)
+        if not email:
+            return make_response(jsonify({'errors': ['Email is required']}), 400)
+        if not password:
+            return make_response(jsonify({'errors': ['Password is required']}), 400)
+
         try:
+            new_user = User(
+                username=username,
+                email=email
+            )
+            new_user.password_hash=password
             db.session.add(new_user)
             db.session.commit()
             access_token = create_access_token(identity=str(new_user.id))  #converts user id to string for JWT identity payload
             return make_response(jsonify(token=access_token, user=UserSchema().dump(new_user)), 201)
+        except ValueError as exc:
+            db.session.rollback()
+            return make_response(jsonify({'errors': [str(exc)]}), 422)
         except IntegrityError:
+            db.session.rollback()
             return make_response(jsonify({'errors': ['User already exists or data is invalid']}), 422) #prevents duplicate usernames or emails from crashing the server
 
 #login route
