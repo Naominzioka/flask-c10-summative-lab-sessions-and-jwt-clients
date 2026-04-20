@@ -44,7 +44,7 @@ class BudgetSchema(Schema):
             raise ValidationError('Monthly budget cannot be a negative number.')
         if data.get('monthly_income') is not None and data['monthly_income'] < 0:
             raise ValidationError('Monthly income cannot be a negative integer.')
-        if data.get('month') is not None and data['month'] < 1 or data['month'] > 12:
+        if data.get('month') is not None and (data['month'] < 1 or data['month'] > 12):
             raise ValidationError('Month must be between 1 and 12.')
         if data.get('year') is not None and data['year'] < 2026:
             raise ValidationError('Year must be 2026 or later')

@@ -30,12 +30,16 @@ def check_if_logged_in():
         verify_jwt_in_request()
     except Exception:
         return make_response(jsonify({'errors': ['401 Unauthorized']}), 401) #stops any request without a valid token
-    
-    
+
 #new user endpoint    
 class Signup(Resource):
     def post(self):
-        request_json = request.get_json() or {}
+        if not request.is_json:
+            return make_response(jsonify({'errors': ['Signup failed. Please try again.']}), 400)
+        try:
+            request_json = request.get_json()
+        except Exception:
+            return make_response(jsonify({'errors': ['Signup failed. Please try again.']}), 400)
         
         username = request_json.get('username')
         password = request_json.get('password')
@@ -63,13 +67,23 @@ class Signup(Resource):
             return make_response(jsonify({'errors': [str(exc)]}), 422)
         except IntegrityError:
             db.session.rollback()
-            return make_response(jsonify({'errors': ['User already exists or data is invalid']}), 422) #prevents duplicate usernames or emails from crashing the server
+            return make_response(jsonify({'errors': ['Username or email already exists']}), 422) #prevents duplicate usernames or emails from crashing the server
 
 #login route
 class Login(Resource):
     def post(self):
-        username = request.get_json()['username']
-        password = request.get_json()['password']
+        if not request.is_json:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+        try:
+            request_json = request.get_json()
+        except Exception:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+
+        username = request_json.get('username')
+        password = request_json.get('password')
+
+        if not username or not password:
+            return make_response(jsonify({'errors': ['Username and password are required']}), 400)
         
         user = User.query.filter(User.username == username).first()
         if user and user.authenticate(password):
@@ -102,7 +116,7 @@ class ExpensesIndex(Resource):
         per_page = request.args.get("per_page", 5, type=int)
         pagination = Expense.query.filter_by(user_id=user_id).paginate(page=page, per_page=per_page, error_out=False)  #use paginate to limit the number of records returned 
         if not pagination.items:                                                                                        #this improves server perfomance and prevents UI overload
-            return make_response(jsonify({'message': 'No expenses found'}), 404)
+            return make_response(jsonify({'errors': ['No expenses found']}), 404)
         return {
             "page": page,
             "per_page": per_page,
@@ -111,11 +125,24 @@ class ExpensesIndex(Resource):
         
    # POST request to add a new expense
     def post(self):
-        data = request.get_json()
+        if not request.is_json:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+        try:
+            data = request.get_json()
+        except Exception:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+
         user_id = get_jwt_identity()
+        date_str = data.get('date')
+
+        if not date_str:
+            return make_response(jsonify({'errors': ['Add a date before saving this expense.']}), 400)
         
         # Convert string date to a real date object
-        dt = datetime.strptime(data.get('date'), '%Y-%m-%d')
+        try:
+            dt = datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            return make_response(jsonify({'errors': ['Date format should be YYYY-MM-DD (example: 2026-04-21).']}), 400)
 
         #Find or Create the Budget
         budget = Budget.query.filter_by(user_id=user_id, month=dt.month, year=dt.year).first()
@@ -142,7 +169,7 @@ class ExpensesIndex(Resource):
             return make_response(jsonify(ExpenseSchema().dump(new_expense)), 201)
         except Exception as e:
             db.session.rollback()
-            return make_response(jsonify({"error": str(e)}), 422)
+            return make_response(jsonify({'errors': [str(e)]}), 422)
             
 # find one expense by its id
 class ExpensesById(Resource):
@@ -150,7 +177,7 @@ class ExpensesById(Resource):
         user_id = get_jwt_identity()
         user_expenses = Expense.query.filter_by(id=id, user_id=user_id).first()  # filter by both id and user id so users can't access other users data
         if not user_expenses:
-            return {'message': 'Expense not found'}, 404
+            return make_response(jsonify({'errors': ['Expense not found']}), 404)
         return make_response(jsonify(ExpenseSchema().dump(user_expenses)), 200)
     
     #delete an expense by id
@@ -158,21 +185,30 @@ class ExpensesById(Resource):
         user_id = get_jwt_identity()
         user_expense = Expense.query.filter_by(id=id, user_id=user_id).first()
         if not user_expense:
-            return {'message': 'Expense id not found'}, 404
+            return make_response(jsonify({'errors': ['Expense id not found']}), 404)
         try:
             db.session.delete(user_expense)
             db.session.commit()
             return make_response('', 204)  # return empty since no content is found after the deletion
         except Exception as e:
             db.session.rollback()
-            return make_response(jsonify({'error': 'Could not delete expense'}), 500)
+            return make_response(jsonify({'errors': ['Could not delete expense']}), 500)
     
     def patch(self, id):
-        data = request.get_json()
+        if not request.is_json:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+        try:
+            data = request.get_json()
+        except Exception:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+
         user_id = get_jwt_identity()
         user_expense = Expense.query.filter_by(id=id, user_id=user_id).first()
         if not user_expense:
-            return {'message': 'Expense not found'}, 404
+            return make_response(jsonify({'errors': ['Expense not found']}), 404)
+
+        if not data:
+            return make_response(jsonify({'errors': ['No update data provided']}), 400)
         
         # Update only the fields available in the request body
         for key in ['title', 'amount', 'category', 'description']:
@@ -183,7 +219,7 @@ class ExpensesById(Resource):
             return make_response(jsonify(ExpenseSchema().dump(user_expense)), 200)
         except Exception as e:
             db.session.rollback()
-            return make_response(jsonify({"error": str(e)}), 422)
+            return make_response(jsonify({'errors': [str(e)]}), 422)
                 
 #budget endpoints
 # 1.all user budgets with calculated fields for total spent, remaining budget, and remaining income
@@ -193,7 +229,7 @@ class BudgetIndex(Resource):
         user_budgets = Budget.query.filter_by(user_id=user_id).all()
         
         if not user_budgets:
-            return make_response(jsonify({'message': 'No budgets found.'}), 404)
+            return make_response(jsonify({'errors': ['No budgets found.']}), 404)
 
         results = []
         
@@ -221,8 +257,17 @@ class BudgetIndex(Resource):
 
     #create new budget
     def post(self):
-        data = request.get_json()
+        if not request.is_json:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+        try:
+            data = request.get_json()
+        except Exception:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+
         user_id = get_jwt_identity()
+
+        if data.get('month') is None or data.get('year') is None:
+            return make_response(jsonify({'errors': ['Month and year are required']}), 400)
     
         check_if_exists = Budget.query.filter_by(
             user_id=user_id,
@@ -230,7 +275,7 @@ class BudgetIndex(Resource):
             year = data.get('year')
         ).first()
         if check_if_exists:
-            return make_response(jsonify({'error': 'Budget for this month already exists'}), 422)
+            return make_response(jsonify({'errors': ['Budget for this month already exists']}), 422)
         new_budget = Budget(
             monthly_income = data.get('monthly_income'),
             monthly_budget = data.get('monthly_budget'),
@@ -244,7 +289,7 @@ class BudgetIndex(Resource):
             return make_response(jsonify(BudgetSchema().dump(new_budget)), 201)
         except Exception as e:
             db.session.rollback()
-            return make_response(jsonify({'error': str(e)}), 422)
+            return make_response(jsonify({'errors': [str(e)]}), 422)
         
         
         
@@ -254,14 +299,14 @@ class BudgetId(Resource):
         user_id = get_jwt_identity()
         user_budget = Budget.query.filter_by(id=id, user_id=user_id).first()
         if not user_budget:
-            return make_response(jsonify({'message': 'Budget not found'}), 404)
+            return make_response(jsonify({'errors': ['Budget not found']}), 404)
         return make_response(jsonify(BudgetSchema().dump(user_budget)), 200)
     
     def delete(self, id):
         user_id = get_jwt_identity()
         user_budget = Budget.query.filter_by(id=id, user_id=user_id).first()
         if not user_budget:
-            return make_response(jsonify({'message': 'Budget not found'}), 404)
+            return make_response(jsonify({'errors': ['Budget not found']}), 404)
         try:
             Expense.query.filter_by(budget_id=id).delete()  #first find expenses linked to the budget to be deleted and delete them
             db.session.delete(user_budget)
@@ -269,14 +314,23 @@ class BudgetId(Resource):
             return make_response('', 204)
         except Exception as e:
             db.session.rollback()
-            return make_response(jsonify({'error': str(e)}), 500)
+            return make_response(jsonify({'errors': [str(e)]}), 500)
     
     def patch(self, id):
-        data = request.get_json()
+        if not request.is_json:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+        try:
+            data = request.get_json()
+        except Exception:
+            return make_response(jsonify({'errors': ['Something went wrong. Please try again.']}), 400)
+
         user_id = get_jwt_identity()
         user_budget = Budget.query.filter_by(id=id, user_id=user_id).first()
         if not user_budget:
-            return {'message': 'Budget not found'}, 404
+            return make_response(jsonify({'errors': ['Budget not found']}), 404)
+
+        if not data:
+            return make_response(jsonify({'errors': ['No update data provided']}), 400)
         
         # Update only the fields available in the request body
         for key in ['monthly_income', 'monthly_budget']:
@@ -287,7 +341,7 @@ class BudgetId(Resource):
             return make_response(jsonify(BudgetSchema().dump(user_budget)), 200)
         except Exception as e:
             db.session.rollback()
-            return make_response(jsonify({"error": str(e)}), 422)
+            return make_response(jsonify({'errors': [str(e)]}), 422)
         
 
     
